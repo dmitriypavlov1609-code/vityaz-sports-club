@@ -1,0 +1,332 @@
+// Prisma schema для спортивного клуба Витязь
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Роли пользователей
+enum Role {
+  PARENT    // Родитель
+  TRAINER   // Тренер
+  ADMIN     // Администратор
+}
+
+// Пол
+enum Gender {
+  MALE      // Мужской
+  FEMALE    // Женский
+}
+
+// Статус платежа
+enum PaymentStatus {
+  PENDING   // Ожидает оплаты
+  COMPLETED // Оплачен
+  FAILED    // Ошибка
+  REFUNDED  // Возврат
+}
+
+// Пользователи (родители, тренеры, админы)
+model User {
+  id            String    @id @default(uuid())
+  email         String    @unique
+  password      String
+  role          Role      @default(PARENT)
+  firstName     String    @map("first_name")
+  lastName      String    @map("last_name")
+  phone         String?
+  avatar        String?   // URL аватара
+
+  // Настройки уведомлений
+  emailNotifications     Boolean @default(true) @map("email_notifications")
+  pushNotifications      Boolean @default(true) @map("push_notifications")
+  telegramChatId         String? @map("telegram_chat_id")
+
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  // Связи
+  children      Child[]
+  trainer       Trainer?
+  payments      Payment[]
+  refreshTokens RefreshToken[]
+
+  @@map("users")
+}
+
+// Refresh токены для JWT
+model RefreshToken {
+  id          String   @id @default(uuid())
+  token       String   @unique
+  userId      String   @map("user_id")
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  expiresAt   DateTime @map("expires_at")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  @@map("refresh_tokens")
+}
+
+// Дети (профили детей)
+model Child {
+  id              String      @id @default(uuid())
+  firstName       String      @map("first_name")
+  lastName        String      @map("last_name")
+  middleName      String?     @map("middle_name")
+  dateOfBirth     DateTime    @map("date_of_birth")
+  photo           String?     // URL фото в Cloudinary
+  gender          Gender
+
+  parentId        String      @map("parent_id")
+  parent          User        @relation(fields: [parentId], references: [id], onDelete: Cascade)
+
+  trainerId       String?     @map("trainer_id")
+  trainer         Trainer?    @relation(fields: [trainerId], references: [id], onDelete: SetNull)
+
+  balance         Int         @default(0) // количество оплаченных тренировок
+  weight          Float?      // вес ребенка в кг
+
+  // Контакты для экстренных случаев
+  emergencyContact String?    @map("emergency_contact")
+  medicalNotes     String?    @map("medical_notes") // медицинские особенности
+
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  // Связи
+  sessions        Session[]
+  ofpResults      OFPResult[]
+  metrics         Metric[]
+  achievements    Achievement[]
+
+  @@map("children")
+}
+
+// Тренеры
+model Trainer {
+  id              String      @id @default(uuid())
+  userId          String      @unique @map("user_id")
+  user            User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  specialization  String?     // специализация (борьба, бокс, ОФП)
+  experience      Int?        // лет опыта
+  bio             String?     // биография
+  certifications  String?     // сертификаты
+
+  createdAt       DateTime    @default(now()) @map("created_at")
+  updatedAt       DateTime    @updatedAt @map("updated_at")
+
+  // Связи
+  children        Child[]
+  sessions        Session[]
+  ofpResults      OFPResult[]
+
+  @@map("trainers")
+}
+
+// Тренировки и посещения
+model Session {
+  id              String      @id @default(uuid())
+
+  childId         String      @map("child_id")
+  child           Child       @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  trainerId       String      @map("trainer_id")
+  trainer         Trainer     @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  date            DateTime    // дата и время тренировки
+  duration        Int         @default(60) // длительность в минутах
+  attended        Boolean     @default(false) // посетил ли ребенок
+  notes           String?     // комментарии тренера
+
+  markedAt        DateTime?   @map("marked_at") // когда отмечено посещение
+
+  createdAt       DateTime    @default(now()) @map("created_at")
+
+  @@index([childId])
+  @@index([trainerId])
+  @@index([date])
+  @@map("sessions")
+}
+
+// Результаты ОФП (общая физическая подготовка)
+model OFPResult {
+  id              String      @id @default(uuid())
+
+  childId         String      @map("child_id")
+  child           Child       @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  trainerId       String      @map("trainer_id")
+  trainer         Trainer     @relation(fields: [trainerId], references: [id], onDelete: Cascade)
+
+  testDate        DateTime    @map("test_date") // дата тестирования
+
+  // Беговые нормативы (в секундах)
+  run30m          Float?      @map("run_30m")      // бег 30 метров
+  run60m          Float?      @map("run_60m")      // бег 60 метров
+  run100m         Float?      @map("run_100m")     // бег 100 метров
+  shuttleRun      Float?      @map("shuttle_run")  // челночный бег 3x10м
+
+  // Силовые нормативы (количество раз)
+  pullUps         Int?        @map("pull_ups")     // подтягивания
+  pushUps         Int?        @map("push_ups")     // отжимания
+  press30s        Int?        @map("press_30s")    // пресс за 30 секунд
+
+  // Прыжковые нормативы (в сантиметрах)
+  longJump        Int?        @map("long_jump")    // прыжок в длину
+  highJump        Int?        @map("high_jump")    // прыжок в высоту
+
+  // Другие показатели
+  flexibility     Int?        // гибкость: наклон вперед (см)
+  ballThrow       Float?      @map("ball_throw")   // метание мяча (метры)
+
+  // Комментарии тренера
+  notes           String?
+
+  createdAt       DateTime    @default(now()) @map("created_at")
+
+  @@index([childId])
+  @@index([testDate])
+  @@map("ofp_results")
+}
+
+// Нормативы ОФП по возрастам
+model OFPStandard {
+  id              String      @id @default(uuid())
+  ageFrom         Int         @map("age_from")  // возраст от
+  ageTo           Int         @map("age_to")    // возраст до
+  gender          Gender
+
+  // Бег 30м (секунды): минимум / норма / отлично
+  run30m_min      Float?      @map("run_30m_min")
+  run30m_norm     Float?      @map("run_30m_norm")
+  run30m_excel    Float?      @map("run_30m_excel")
+
+  // Бег 60м (секунды)
+  run60m_min      Float?      @map("run_60m_min")
+  run60m_norm     Float?      @map("run_60m_norm")
+  run60m_excel    Float?      @map("run_60m_excel")
+
+  // Бег 100м (секунды)
+  run100m_min     Float?      @map("run_100m_min")
+  run100m_norm    Float?      @map("run_100m_norm")
+  run100m_excel   Float?      @map("run_100m_excel")
+
+  // Челночный бег (секунды)
+  shuttleRun_min  Float?      @map("shuttle_run_min")
+  shuttleRun_norm Float?      @map("shuttle_run_norm")
+  shuttleRun_excel Float?     @map("shuttle_run_excel")
+
+  // Подтягивания (количество)
+  pullUps_min     Int?        @map("pull_ups_min")
+  pullUps_norm    Int?        @map("pull_ups_norm")
+  pullUps_excel   Int?        @map("pull_ups_excel")
+
+  // Отжимания (количество)
+  pushUps_min     Int?        @map("push_ups_min")
+  pushUps_norm    Int?        @map("push_ups_norm")
+  pushUps_excel   Int?        @map("push_ups_excel")
+
+  // Пресс (количество за 30 сек)
+  press30s_min    Int?        @map("press_30s_min")
+  press30s_norm   Int?        @map("press_30s_norm")
+  press30s_excel  Int?        @map("press_30s_excel")
+
+  // Прыжок в длину (см)
+  longJump_min    Int?        @map("long_jump_min")
+  longJump_norm   Int?        @map("long_jump_norm")
+  longJump_excel  Int?        @map("long_jump_excel")
+
+  // Прыжок в высоту (см)
+  highJump_min    Int?        @map("high_jump_min")
+  highJump_norm   Int?        @map("high_jump_norm")
+  highJump_excel  Int?        @map("high_jump_excel")
+
+  // Гибкость (см)
+  flexibility_min Int?        @map("flexibility_min")
+  flexibility_norm Int?       @map("flexibility_norm")
+  flexibility_excel Int?      @map("flexibility_excel")
+
+  // Метание мяча (м)
+  ballThrow_min   Float?      @map("ball_throw_min")
+  ballThrow_norm  Float?      @map("ball_throw_norm")
+  ballThrow_excel Float?      @map("ball_throw_excel")
+
+  @@unique([ageFrom, ageTo, gender])
+  @@map("ofp_standards")
+}
+
+// Антропометрические данные детей
+model Metric {
+  id              String      @id @default(uuid())
+
+  childId         String      @map("child_id")
+  child           Child       @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  date            DateTime    @default(now()) // дата измерения
+  height          Int?        // рост в см
+  weight          Float?      // вес в кг
+
+  // Антропометрия
+  chestCircumference  Int?    @map("chest_circumference") // обхват груди (см)
+  waistCircumference  Int?    @map("waist_circumference") // обхват талии (см)
+
+  notes           String?
+
+  createdAt       DateTime    @default(now()) @map("created_at")
+
+  @@index([childId])
+  @@map("metrics")
+}
+
+// Платежи
+model Payment {
+  id              String        @id @default(uuid())
+
+  userId          String        @map("user_id")
+  user            User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  childId         String?       @map("child_id") // для какого ребенка покупка (опционально)
+
+  amount          Float         // сумма в рублях
+  currency        String        @default("RUB")
+  sessionsCount   Int           @map("sessions_count") // количество купленных тренировок
+
+  status          PaymentStatus @default(PENDING)
+  paymentMethod   String?       @map("payment_method") // "ukassa", etc.
+  externalId      String?       @unique @map("external_id") // ID в платежной системе
+
+  // Детали пакета
+  packageName     String?       @map("package_name") // "Пробное занятие", "Абонемент 8"
+
+  // Дополнительная информация
+  metadata        Json?         // дополнительные данные
+
+  createdAt       DateTime      @default(now()) @map("created_at")
+  updatedAt       DateTime      @updatedAt @map("updated_at")
+
+  @@index([userId])
+  @@index([status])
+  @@map("payments")
+}
+
+// Достижения детей (геймификация)
+model Achievement {
+  id              String      @id @default(uuid())
+
+  childId         String      @map("child_id")
+  child           Child       @relation(fields: [childId], references: [id], onDelete: Cascade)
+
+  title           String      // название достижения
+  description     String      // описание
+  icon            String      // emoji или URL иконки
+  category        String      @default("general") // категория (ofp, attendance, progress)
+
+  earnedAt        DateTime    @default(now()) @map("earned_at")
+
+  @@index([childId])
+  @@map("achievements")
+}

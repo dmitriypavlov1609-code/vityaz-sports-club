@@ -1,0 +1,86 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-white text-vityaz-gray-900 dark:bg-vityaz-gray-900 dark:text-white;
+    font-family: 'Inter', system-ui, -apple-system, sans-serif;
+  }
+}
+
+@layer components {
+  /* Кастомные компоненты */
+  .btn {
+    @apply px-4 py-2 rounded-lg font-medium transition-colors duration-200;
+  }
+
+  .btn-primary {
+    @apply bg-vityaz-red text-white hover:bg-red-700;
+  }
+
+  .btn-secondary {
+    @apply bg-vityaz-gray-200 text-vityaz-gray-900 hover:bg-vityaz-gray-300 dark:bg-vityaz-gray-700 dark:text-white dark:hover:bg-vityaz-gray-600;
+  }
+
+  .btn-outline {
+    @apply border-2 border-vityaz-gray-300 text-vityaz-gray-700 hover:bg-vityaz-gray-50 dark:border-vityaz-gray-600 dark:text-vityaz-gray-300 dark:hover:bg-vityaz-gray-800;
+  }
+
+  .card {
+    @apply bg-white dark:bg-vityaz-gray-800 rounded-xl shadow-md p-6 transition-shadow duration-200 hover:shadow-lg;
+  }
+
+  .input {
+    @apply w-full px-4 py-2 border border-vityaz-gray-300 rounded-lg focus:ring-2 focus:ring-vityaz-red focus:border-transparent dark:bg-vityaz-gray-700 dark:border-vityaz-gray-600 dark:text-white transition-all duration-200;
+  }
+
+  .label {
+    @apply block text-sm font-medium text-vityaz-gray-700 dark:text-vityaz-gray-300 mb-2;
+  }
+
+  /* Анимации */
+  .animate-fadeIn {
+    animation: fadeIn 0.3s ease-in;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(-10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Skeleton loaders */
+  .skeleton {
+    @apply animate-pulse bg-vityaz-gray-200 dark:bg-vityaz-gray-700 rounded;
+  }
+
+  /* Scrollbar стилизация */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    @apply bg-vityaz-gray-100 dark:bg-vityaz-gray-800;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-vityaz-gray-400 dark:bg-vityaz-gray-600 rounded-full;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-vityaz-gray-500 dark:bg-vityaz-gray-500;
+  }
+}
+
+@layer utilities {
+  /* Утилиты */
+  .text-balance {
+    text-wrap: balance;
+  }
+}
