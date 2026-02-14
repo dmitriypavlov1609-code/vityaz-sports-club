@@ -33,6 +33,8 @@ export interface User {
   telegramChatId?: string;
   createdAt: string;
   updatedAt: string;
+  trainer?: Trainer;
+  children?: Child[];
 }
 
 // Ребенок

@@ -6,13 +6,13 @@ import Button from '@/components/ui/Button';
 import { ArrowLeft, Calendar, Clock, User, CheckCircle, XCircle } from 'lucide-react';
 import toast from 'react-hot-toast';
 
-interface Session {
+interface SessionWithChild {
   id: string;
   date: string;
   duration: number;
   attended: boolean;
   notes?: string;
-  child: {
+  child?: {
     id: string;
     firstName: string;
     lastName: string;
@@ -22,7 +22,7 @@ interface Session {
 
 const AllSessions = () => {
   const navigate = useNavigate();
-  const [sessions, setSessions] = useState<Session[]>([]);
+  const [sessions, setSessions] = useState<SessionWithChild[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
@@ -43,7 +43,7 @@ const AllSessions = () => {
   };
 
   const groupSessionsByDate = () => {
-    const grouped: Record<string, Session[]> = {};
+    const grouped: Record<string, SessionWithChild[]> = {};
 
     sessions.forEach((session) => {
       const date = new Date(session.date).toLocaleDateString('ru-RU', {
@@ -170,7 +170,7 @@ const AllSessions = () => {
                       <Card
                         key={session.id}
                         className="cursor-pointer hover:shadow-lg transition-shadow"
-                        onClick={() => navigate(`/trainer/students/${session.child.id}`)}
+                        onClick={() => navigate(`/trainer/students/${session.child?.id}`)}
                       >
                         <div className="flex items-center justify-between">
                           <div className="flex items-center gap-4">
@@ -194,7 +194,7 @@ const AllSessions = () => {
                               <div className="flex items-center gap-2">
                                 <User className="w-4 h-4 text-vityaz-gray-600 dark:text-vityaz-gray-400" />
                                 <h3 className="font-semibold text-vityaz-gray-900 dark:text-white">
-                                  {session.child.lastName} {session.child.firstName} {session.child.middleName}
+                                  {session.child?.lastName} {session.child?.firstName} {session.child?.middleName}
                                 </h3>
                               </div>
                               <div className="flex items-center gap-4 mt-1 text-sm text-vityaz-gray-600 dark:text-vityaz-gray-400">

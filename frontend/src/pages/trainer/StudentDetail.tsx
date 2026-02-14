@@ -57,7 +57,7 @@ const StudentDetail = () => {
     try {
       setIsLoading(true);
       const [studentData, sessionsData, ofpData] = await Promise.all([
-        childrenService.getChild(id!),
+        childrenService.getChildById(id!),
         sessionsService.getChildSessions(id!),
         ofpService.getChildResults(id!),
       ]);
