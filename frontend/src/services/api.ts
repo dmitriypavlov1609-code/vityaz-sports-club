@@ -1,16 +1,24 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
 import toast from 'react-hot-toast';
+import { installMockAdapter } from './mockApi';
 
-const API_URL = (import.meta as any).env.VITE_API_URL || 'http://localhost:5001/api';
+const API_URL = (import.meta as any).env.VITE_API_URL || '';
+const isDemoMode = !API_URL;
 
 // Создание axios instance
 const api: AxiosInstance = axios.create({
-  baseURL: API_URL,
+  baseURL: API_URL || 'http://localhost:5001/api',
   timeout: 30000,
   headers: {
     'Content-Type': 'application/json',
   },
 });
+
+// Мок-режим (GitHub Pages, без бэкенда)
+if (isDemoMode) {
+  installMockAdapter(api);
+  console.log('%c[DEMO] Мок-данные активны — бэкенд не подключён', 'color: #f59e0b; font-weight: bold');
+}
 
 // Request interceptor (добавление токена)
 api.interceptors.request.use(
@@ -27,56 +35,49 @@ api.interceptors.request.use(
 );
 
 // Response interceptor (обработка ошибок и обновление токена)
-api.interceptors.response.use(
-  (response) => {
-    return response;
-  },
-  async (error: AxiosError<any>) => {
-    const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
+if (!isDemoMode) {
+  api.interceptors.response.use(
+    (response) => response,
+    async (error: AxiosError<any>) => {
+      const originalRequest = error.config as InternalAxiosRequestConfig & { _retry?: boolean };
 
-    // Обработка 401 (попытка обновить токен)
-    if (error.response?.status === 401 && !originalRequest._retry) {
-      originalRequest._retry = true;
+      if (error.response?.status === 401 && !originalRequest._retry) {
+        originalRequest._retry = true;
 
-      try {
-        const refreshToken = localStorage.getItem('refreshToken');
+        try {
+          const refreshToken = localStorage.getItem('refreshToken');
 
-        if (refreshToken) {
-          const response = await axios.post(`${API_URL}/auth/refresh`, {
-            refreshToken,
-          });
+          if (refreshToken) {
+            const response = await axios.post(`${API_URL}/auth/refresh`, {
+              refreshToken,
+            });
 
-          const { accessToken } = response.data.data;
+            const { accessToken } = response.data.data;
+            localStorage.setItem('accessToken', accessToken);
 
-          // Сохранение нового токена
-          localStorage.setItem('accessToken', accessToken);
+            if (originalRequest.headers) {
+              originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+            }
 
-          // Повтор оригинального запроса
-          if (originalRequest.headers) {
-            originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+            return api(originalRequest);
           }
-
-          return api(originalRequest);
+        } catch (refreshError) {
+          localStorage.removeItem('accessToken');
+          localStorage.removeItem('refreshToken');
+          localStorage.removeItem('user');
+          window.location.href = '/login';
+          return Promise.reject(refreshError);
         }
-      } catch (refreshError) {
-        // Если обновление токена не удалось - выход
-        localStorage.removeItem('accessToken');
-        localStorage.removeItem('refreshToken');
-        localStorage.removeItem('user');
-        window.location.href = '/login';
-        return Promise.reject(refreshError);
       }
+
+      const errorMessage = error.response?.data?.error || 'Произошла ошибка';
+      if (error.response?.status !== 401) {
+        toast.error(errorMessage);
+      }
+
+      return Promise.reject(error);
     }
-
-    // Показ ошибок пользователю
-    const errorMessage = error.response?.data?.error || 'Произошла ошибка';
-
-    if (error.response?.status !== 401) {
-      toast.error(errorMessage);
-    }
-
-    return Promise.reject(error);
-  }
-);
+  );
+}
 
 export default api;
