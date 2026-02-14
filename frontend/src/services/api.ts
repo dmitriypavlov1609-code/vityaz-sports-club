@@ -1,6 +1,6 @@
 import axios, { AxiosInstance, AxiosError, InternalAxiosRequestConfig } from 'axios';
 import toast from 'react-hot-toast';
-import { installMockAdapter } from './mockApi';
+import { createMockAdapter } from './mockApi';
 
 const API_URL = (import.meta as any).env.VITE_API_URL || '';
 const isDemoMode = !API_URL;
@@ -12,11 +12,11 @@ const api: AxiosInstance = axios.create({
   headers: {
     'Content-Type': 'application/json',
   },
+  // В демо-режиме подменяем HTTP-адаптер на мок
+  ...(isDemoMode ? { adapter: createMockAdapter() as any } : {}),
 });
 
-// Мок-режим (GitHub Pages, без бэкенда)
 if (isDemoMode) {
-  installMockAdapter(api);
   console.log('%c[DEMO] Мок-данные активны — бэкенд не подключён', 'color: #f59e0b; font-weight: bold');
 }
 
@@ -34,7 +34,7 @@ api.interceptors.request.use(
   }
 );
 
-// Response interceptor (обработка ошибок и обновление токена)
+// Response interceptor (обработка ошибок) — только в реальном режиме
 if (!isDemoMode) {
   api.interceptors.response.use(
     (response) => response,
